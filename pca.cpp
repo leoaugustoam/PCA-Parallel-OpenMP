@@ -303,7 +303,7 @@ int main(int argc, char* argv[]) {
     
     // verificar argumentos corretos	
     assert(dim >= K);
-    const int row = 125; // numero de dados por dimensão
+    const int row = 5000; // numero de dados por dimensão
     const int col = dim; // numero de dimensões
     //const int col = 2; // numero de dimensões
 
@@ -316,12 +316,24 @@ int main(int argc, char* argv[]) {
 
 
 
+	double start_subtrair, end_subtrair; 
+
+	start_subtrair = omp_get_wtime();////////////////////////////////////////////////////
 
     Array1D<double> means(col);
     adjust_data(d, means); // subtrai as médias
 
+    end_subtrair = omp_get_wtime();///////////////////////////////////////////////////////////
+	
+	
+	double start_cov, end_cov; 
+
+	start_cov = omp_get_wtime();////////////////////////////////////////////////////
+
     Array2D<double> covar_matrix(col, col);
     compute_covariance_matrix(d, covar_matrix); // computa matriz de covariância
+    end_cov = omp_get_wtime();///////////////////////////////////////////////////////////
+
 
 
 
@@ -337,13 +349,34 @@ int main(int argc, char* argv[]) {
 
     end_eigen = omp_get_wtime();///////////////////////////////////////////////////////////
 
-	
+
+
+
+	double start_k, end_k; 
+
+	start_k = omp_get_wtime();////////////////////////////////////////////////////	
 	// determinar o featureVector reduzindo os eigenvectors principais em K eigenvectors.
 	// resultado possui K colunas (dimensões)
 	Array2D<double> featureVector(col, K);
 	choose_components(eigenvalue, eigenvector, featureVector, K);	
+    end_k = omp_get_wtime();///////////////////////////////////////////////////////////
 
     
+
+
+
+
+
+
+
+
+
+
+
+
+	double start_trans, end_trans; 
+
+	start_trans = omp_get_wtime();////////////////////////////////////////////////////	
     // final_data^T = FeatureVector^T * DataAdjustada^T
 	// sendo final_data a matriz calculada com os melhores eigenvectors
     Array2D<double> fd_transp(K, row);
@@ -356,6 +389,7 @@ int main(int argc, char* argv[]) {
     multiply(transpose_featV, transpose_data, fd_transp);
 	transpose(fd_transp, final_data); // forma original, cada coluna é uma dimensão.	
 	
+    end_trans = omp_get_wtime();///////////////////////////////////////////////////////
 
 
 
@@ -366,27 +400,7 @@ int main(int argc, char* argv[]) {
     // exportar para o usuário os dados relevantes
     cout << "--------------" << endl;
     cout << "Threads/Dimension/K: " << thread_count << " / " << dim << " / " << K << endl;	    
-    cout << "Tempo geral/eigen/final: " << end_time-start_time << " / " << end_eigen-start_eigen \
-		<< " / " << (end_time-start_time)-(end_eigen-start_eigen) << endl;
+    cout << "Tempo total:" << end_time-start_time <<endl<< "Tempo subtração media: " << end_subtrair-start_subtrair <<endl<< "Tempo covariancia: " << end_cov-start_cov <<endl<< "Tempo escolha K: " << end_k-start_k <<endl<< "Tempo do auto valor e auto vetor " << end_eigen-start_eigen <<endl<< "Tempo transpor matriz: " << end_trans-start_trans <<endl<<"Tempo restante final: " << (end_time-start_time)-(end_eigen-start_eigen)-(end_subtrair-start_subtrair)-(end_cov-start_cov)-(end_k-start_k)-(end_trans-start_trans) << endl;
     
-
-	// caso queira reverter os dados para as dimensões originais...
-	/*
-	// gerando dados novos
-	Array2D<double> dados_novos_transp(col, row);
-	Array2D<double> dados_novos(row, col);
-	
-	// dados_novos^T = (featureVector * final_data^T) + means
-	multiply(featureVector, fd_transp, dados_novos_transp);
-	transpose(dados_novos_transp, dados_novos);
-	// somar com as médias, pra retornar ao valor inicial
-	normalize(dados_novos, means);
-    
-	ostringstream filepath;
-	string s;
-	filepath << "./outputs/" << dim << "to" << K << ".out";
-	s = filepath.str();
-	export_array(dados_novos, s);
-	*/
     return 0;
 }
